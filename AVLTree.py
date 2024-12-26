@@ -5,6 +5,7 @@
 #name2:
 #username2:
 
+import random
 
 """A class represnting a node in an AVL tree"""
 
@@ -105,6 +106,7 @@ class AVLNode(object):
 			newfather.rotateLeft()
 			newfather=newfather.parent
 		self.left=newfather.right
+		self.left.parent=self
 		newfather.right=self
 		newfather.parent=self.parent
 		if(self.parent!=None):
@@ -126,6 +128,7 @@ class AVLNode(object):
 			newfather.rotateRight()
 			newfather=newfather.parent
 		self.right=newfather.left
+		self.right.parent=self
 		newfather.left=self
 		newfather.parent=self.parent
 		if(self.parent!=None):
@@ -354,7 +357,7 @@ class AVLTree(object):
 	and h is the number of PROMOTE cases during the AVL rebalancing
 	"""
 	def finger_insert(self, key, val):
-		traveler=self.max_node()
+		traveler=self.max
 		if(traveler==None):# if tree is empty
 			newnode=AVLNode(key,val)
 			newnode.left=AVLNode(None,None)
@@ -363,17 +366,15 @@ class AVLTree(object):
 			self.root=newnode
 			self.size+=1
 			self.max=newnode
-			return newnode, 0, 0
+			return newnode, 1, 0
 		track=1
-		while((traveler.is_real_node())and(traveler.key>key)):
-			if(traveler==self.root):# if we made it to the root its the same as normal insertion
-				node, partialtrack, promotions = self.insert(key,val)
-				return node, partialtrack+track, promotions
+		while((traveler!=None)and(traveler.key>key)):
 			traveler=traveler.parent
 			track+=1
+		if(traveler==None):
+			traveler=self.root
 		prev=traveler
-		traveler=traveler.right
-		while(traveler.is_real_node()):
+		while((traveler.is_real_node())):
 			prev=traveler
 			if(traveler.key>key):
 				traveler=traveler.left
@@ -617,6 +618,77 @@ class AVLTester:
 			self.test_avl_to_array()
 			print("All tests passed!")
 	
+def buildsortedarray(i):
+		newarr=list()
+		for j in range(111*(2**i)):
+			newarr.append(j)
+		return newarr
+def buildopossitearr(i):
+		newarr=list()
+		for j in range(111*(2**i),0,-1):
+			newarr.append(j)
+		return newarr
+def buildrandarr(i):
+		arr=buildsortedarray(i)
+		random.shuffle(arr)
+		return arr
+def buildrandinversionsarray(i):
+		arr=buildsortedarray(i)
+		for i in range(0,len(arr)-2,2):
+			p=random.random()
+			if(p<=0.5):
+				temp=arr[i]
+				arr[i]=arr[i+1]
+				arr[i+1]=temp
+		return arr
+def countsearchforinsertion(arr):
+	tree=AVLTree()
+	counter=0
+	for i in range(len(arr)-1):
+		counter+=tree.finger_insert(arr[i],"yalla")[1]
+	return counter
+
+def expirement():
+	for i in range(1,11,1):
+		print("i equals to: ")
+		print (i)
+		sortedarr=buildsortedarray(i)
+		opossitearr=buildopossitearr(i)
+		print("count in sorted arr:")
+		print(countsearchforinsertion(sortedarr))
+		print ("count in opposite arr:")
+		print(countsearchforinsertion(opossitearr))
+		count=0
+		print("count in rand arr: (avg)")
+		for j in range (20):
+			randarr=buildrandarr(i)
+			count+=countsearchforinsertion(randarr)
+		print(count/20)
+		inverarr=buildrandinversionsarray(i)
+		print("count for inversion arr:")
+		print(countsearchforinsertion(inverarr))
+
+
+def print_tree(node,dict=dict(), indent="", last=True):
+	if node is None:
+		return
+	dict[node.key] = True
+	print(indent, end="")
+	if last:
+		print("R----", end="")
+		indent += "   "
+	else:
+		print("L----", end="")
+		indent += "|  "
+	print(node.key)
+	print_tree(node.left,dict, indent, last=False)
+	print_tree(node.right, dict,indent, last=True)
+
+
+
+
+
+
 def main():
 	newtree=AVLTree()
 	print(newtree.insert(3,"hello"))
@@ -642,9 +714,11 @@ def main():
 	newtree1.join(newtree,11,"join!")
 	print(newtree1.root.key)
 	print("passed my test")
-	print("now chats test")
-	tester = AVLTester(AVLTree, AVLNode)  # צור מופע של הטסטר
-	tester.run_tests()
+	newtt=AVLTree()
+	expirement()
+
+
+
 
 if __name__ == "__main__":
     main()
