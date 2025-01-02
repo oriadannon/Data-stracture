@@ -25,6 +25,20 @@ class AVLNode(object):
 		self.parent = None
 		self.height = -1
 
+	def get_key(self):
+		return self.key
+	
+	def get_parent(self):
+		return self.parent
+	
+	def get_right(self):
+		return self.right
+	
+	def get_left(self):
+		return self.left
+	
+	def get_height(self):
+		return self.height
 	"""returns whether self is not a virtual node 
 
 	@rtype: bool
@@ -32,7 +46,7 @@ class AVLNode(object):
 	"""
 	def is_real_node(self):
 		return self.key!=None
-	
+
 	"""Updates height of node
 	"""
 	def UpdateHeight(self): # O(1) complexity
@@ -71,9 +85,11 @@ class AVLNode(object):
 				return 1
 			promotions=self.parent.fix(promotions)+1 
 		elif(self.getHeightDistanceLeft()==2):
-			self.rotateLeft() #rotation and done
+			self.rotateLeft() #rotation 
 		elif(self.getHeightDistanceRight()==2):
-			self.rotateRight() #rotation and done
+			self.rotateRight() #rotation
+		if(self.parent!=None):
+			self.parent.fix(promotions)
 		return promotions
 	
 	"""fix tree after node delete 
@@ -149,7 +165,7 @@ class AVLNode(object):
 		if(self.left.is_real_node()):
 			return self.left.findMaxChild()
 		traveler=self
-		while(traveler.parent.left==traveler):
+		while( (traveler.parent!=None) and(traveler.parent.left==traveler)):
 			traveler=traveler.parent
 		traveler=traveler.parent
 		return traveler
@@ -163,7 +179,7 @@ class AVLNode(object):
 		if(self.right.is_real_node()):
 			return self.right.findMinChild()
 		traveler=self
-		while(traveler.parent.right==traveler):#while im the right child of my father
+		while((traveler.parent!=None) and(traveler.parent.right==traveler)):#while im the right child of my father
 			traveler=traveler.parent
 		traveler=traveler.parent
 		return traveler
@@ -220,7 +236,7 @@ class AVLNode(object):
 			track+=1
 		if(traveler.is_real_node()):
 			return traveler, track
-		return None -1
+		return None, -1
 	
 
 		
@@ -296,10 +312,13 @@ class AVLTree(object):
 		else:
 				newnodeplace.left=AVLNode(key,val)
 				newnode=newnodeplace.left
-		if(key>self.max.key):
-			self.max=newnode
+		if(self.max!=None):
+			if(key>self.max.key):
+				self.max=newnode
 		newnode.left=AVLNode(None,None)
 		newnode.right=AVLNode(None,None)
+		newnode.left.parent=newnode
+		newnode.right.parent=newnode
 		newnode.UpdateHeight()
 		newnode.parent=newnodeplace
 		promotions=newnode.parent.fix(0) #fix the tree if needed, in wc: O(logn) complexity
@@ -322,26 +341,28 @@ class AVLTree(object):
 	"""
 	def insert(self, key, val): # O(logn) complexity
 		traveler=self.root
-		prev=None # will be the father of the new node
 		track=1 #counts the track
 		if(traveler==None):
 			newnode=AVLNode(key,val)
 			newnode.left=AVLNode(None,None)
 			newnode.right=AVLNode(None,None)
+			newnode.left.paret=newnode
+			newnode.right.parent=newnode
 			newnode.UpdateHeight()
 			self.root=newnode
 			self.max=newnode
 			self.size+=1
 			return newnode, track, 0
+		newnodeplace=traveler
 		while(traveler.is_real_node()):# search for key (O(logn) complexity)
-			prev=traveler
+			newnodeplace=traveler
 			if(traveler.key<key):
 				traveler=traveler.right
 			else:
 				traveler=traveler.left
 			track+=1 
 		self.size+=1
-		return self.insertion(key,val,prev,track)
+		return self.insertion(key,val,newnodeplace,track)
 
 
 	"""inserts a new node into the dictionary with corresponding key and value, starting at the max
@@ -362,12 +383,14 @@ class AVLTree(object):
 			newnode=AVLNode(key,val)
 			newnode.left=AVLNode(None,None)
 			newnode.right=AVLNode(None,None)
+			newnode.left.parent=newnode
+			newnode.right.parent=newnode
 			newnode.UpdateHeight()
 			self.root=newnode
 			self.size+=1
 			self.max=newnode
 			return newnode, 1, 0
-		track=1
+		track=0
 		while((traveler!=None)and(traveler.key>key)):
 			traveler=traveler.parent
 			track+=1
@@ -380,6 +403,7 @@ class AVLTree(object):
 				traveler=traveler.left
 			else:
 				traveler=traveler.right
+			track+=1
 		self.size+=1
 		return self.insertion(key,val,prev,track)
 
@@ -396,7 +420,10 @@ class AVLTree(object):
 			elif(node.left.is_real_node()!=True): # if node doesnt have left child
 				newchild=node.right
 			if(nodefather==None):#if node is root with one child
-				self.root=newchild
+				if(self.size==1):
+					self.root=None
+				else:
+					self.root=newchild
 				self.size=1
 				self.max=self.root
 				return 
@@ -405,6 +432,8 @@ class AVLTree(object):
 			else:
 				nodefather.left=newchild
 			newchild.parent=nodefather
+			if(node==self.max):
+				self.max=node.Predecessor()
 			nodefather.fixdelete() #O(logn)
 			self.size-=1
 		else: #if node has two children
@@ -431,45 +460,58 @@ class AVLTree(object):
 	or the opposite way
 	"""
 	def join(self, tree2, key, val):
-		tallertree=self
-		shortertree=tree2
+		if(tree2.root==None):#if tree2 is an empty tree
+			self.insert(key,val)
+			return
+		if(self.root==None):#if this tree is an empty tree
+			tree2.insert(key,val)
+			self.root=tree2.root
+			self.size=tree2.size
+			self.max=tree2.max
+			return
+		tallertreeroot=self.root
+		shortertreeroot=tree2.root
 		if(self.root.height<tree2.root.height):#check whos the taller tree
-			tallertree=tree2
-			shortertree=self
-		traveler=tallertree.root #walk on the taller tree
-		if(key<tallertree.root.key):# checks whether to walk on the right track or the left track of tallertree
-			while(traveler.height>shortertree.root.height):# left track
+			tallertreeroot=tree2.root
+			shortertreeroot=self.root
+		traveler=tallertreeroot #walk on the taller tree
+		if(key<tallertreeroot.key):# checks whether to walk on the right track or the left track of tallertree
+			while(traveler.height>shortertreeroot.height):# left track
 				traveler=traveler.left
 			xnode= AVLNode(key,val)# creating xnode and updating his childrens 
 			xnode.right=traveler
-			xnode.left=shortertree.root
+			xnode.left=shortertreeroot
 			xnode.parent=traveler.parent
 			if(traveler.parent!=None): #if xnode isnt the tallertree root
 				traveler.parent.left=xnode
 			else:#if xnode is the tallertree root
-				tallertree.root=xnode
-			self.max=tallertree.max_node
+				tallertreeroot=xnode
+			xnode.left.parent=xnode
 		else:
-			while(traveler.height>shortertree.root.height):# right track
+			while(traveler.height>shortertreeroot.height):# right track
 				traveler=traveler.right
 			xnode= AVLNode(key,val)
 			xnode.left=traveler
-			xnode.right=shortertree.root
+			xnode.right=shortertreeroot
 			xnode.parent=traveler.parent
 			if(traveler.parent!=None):#if xnode isnt the tallertree root
 				traveler.parent.right=xnode
 			else:#if xnode is the tallertree root
-				tallertree.root=xnode
-			self.max=shortertree.max_node
+				tallertreeroot=xnode
+			xnode.right.parent=xnode
 		traveler.parent=xnode
 		xnode.UpdateHeight()
 		if(xnode.parent!=None):# if Xnode isnt taller tree root we need to check and/or fix the top of the tallertree
 			xnode.parent.fix(0)
-		if(self!=tallertree):#we want the root to be the tallertree root
-			if(tallertree.root.parent!=None):#if fix func made rotation with tallertree root
-				tallertree.root=tallertree.root.parent
-			self.root=tallertree.root
-		self.size+=shortertree.size+1
+			if(tallertreeroot.parent!=None):#if fix func made rotation with tallertree root
+				tallertreeroot=tallertreeroot.parent
+			self.root=tallertreeroot
+		else:
+			self.root=xnode
+		self.size=self.size+tree2.size+1
+		if((self.max!=None) and (tree2.max!=None)):
+			if(self.max.key<tree2.max.key):
+				self.max=tree2.max
 
 
 	"""splits the dictionary at a given node
@@ -484,20 +526,32 @@ class AVLTree(object):
 	"""
 	def split(self, node):
 		t1=AVLTree()
-		t1.root=node.left
+		p=node.Predecessor()
+		m=self.max
+		if(node.left.is_real_node()):
+			t1.root=node.left
+			t1.root.parent=None
 		t2=AVLTree()
-		t2.root=node.right
+		if(node.right.is_real_node()):
+			t2.root=node.right
+			t2.root.parent=None
+			t2.max=self.max
 		uptraveler=node
-		while(uptraveler.parent!=None):
+		while(uptraveler.parent!=None ):
+			tmptree=AVLTree()
 			if(uptraveler.parent.right==uptraveler):
-				tmptree=AVLTree()
-				tmptree.root=uptraveler.parent.left
-				t1.join(tmptree,uptraveler.key,uptraveler.val)
+				if(uptraveler.parent.left.is_real_node()):
+					tmptree.root=uptraveler.parent.left
+					tmptree.root.parent=None
+				t1.join(tmptree,uptraveler.parent.key,uptraveler.parent.value)
 			else:
-				tmptree=AVLTree()
-				tmptree.root=uptraveler.parent.right
-				t2.join(tmptree,uptraveler.key,uptraveler.val)
+				if(uptraveler.parent.right.is_real_node()):
+					tmptree.root=uptraveler.parent.right
+					tmptree.root.parent=None
+				t2.join(tmptree,uptraveler.parent.key,uptraveler.parent.value)
 			uptraveler=uptraveler.parent
+		t1.max=p
+		t2.max=m
 		return t1, t2
 
 	
@@ -523,7 +577,7 @@ class AVLTree(object):
 	@rtype: AVLNode
 	@returns: the maximal node, None if the dictionary is empty
 	"""
-	def max_node(self):
+	def max_node(self):#O(1)
 		return self.max
 	
 	"""returns the number of items in dictionary 
@@ -540,7 +594,7 @@ class AVLTree(object):
 	@rtype: AVLNode
 	@returns: the root, None if the dictionary is empty
 	"""
-	def get_root(self):
+	def get_root(self):#O(1)
 		return self.root
 
 class AVLTester:
@@ -668,11 +722,25 @@ def expirement():
 		print("count for inversion arr:")
 		print(countsearchforinsertion(inverarr))
 
+def Test2():
+	randarr=buildrandarr(2)
+	tree=AVLTree()
+	for i in range(len(randarr)-1):
+		tree.insert(randarr[i],"yalla")
+	print("done insert")
+	for i in range(4):
+		deln=tree.search(random.choice(randarr))[0]
+		if(deln!=None):
+			print(deln.key)
+			tree.delete(deln)
+	print_tree(tree.root)
+	print(tree.size)
 
-def print_tree(node,dict=dict(), indent="", last=True):
+
+
+def print_tree(node, indent="", last=True):
 	if node is None:
 		return
-	dict[node.key] = True
 	print(indent, end="")
 	if last:
 		print("R----", end="")
@@ -680,9 +748,9 @@ def print_tree(node,dict=dict(), indent="", last=True):
 	else:
 		print("L----", end="")
 		indent += "|  "
-	print(node.key)
-	print_tree(node.left,dict, indent, last=False)
-	print_tree(node.right, dict,indent, last=True)
+	print(node.key, node.height)
+	print_tree(node.left, indent, last=False)
+	print_tree(node.right,indent, last=True)
 
 
 
@@ -690,32 +758,17 @@ def print_tree(node,dict=dict(), indent="", last=True):
 
 
 def main():
-	newtree=AVLTree()
-	print(newtree.insert(3,"hello"))
-	print(newtree.insert(2,"world"))
-	print(newtree.insert(1,"!"))
-	print(newtree.insert(10,"!"))
-	print(newtree.insert(9,"!"))
-	print("search")
-	print(newtree.search(9)[0])
-	print(newtree.root.right.key)#9
-	print(newtree.insert(6,"!"))
-	print(newtree.root.key)
-	print(newtree.root.right.key)
-	print(newtree.root.left.key)
-	print(newtree.insert(4,"!"))
-	print(newtree.root.key)
-	print("HELLO")
-	print(newtree.size)
-	newtree1=AVLTree()
-	print(newtree1.insert(12,"hello"))
-	print(newtree1.insert(15,"!"))
-	print(newtree1.insert(13,"world"))
-	newtree1.join(newtree,11,"join!")
-	print(newtree1.root.key)
-	print("passed my test")
-	newtt=AVLTree()
-	expirement()
+	t=AVLTree()
+	t.insert(37,"")
+	t.insert(29,"")
+	t.insert(24,"")
+	t.insert(16,"")
+	n=t.search(16)[0]
+	print_tree(t.root)
+	t1,t2=t.split(n)
+	print_tree(t2.root)
+
+  
 
 
 
