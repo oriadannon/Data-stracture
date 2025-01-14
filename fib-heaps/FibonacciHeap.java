@@ -1,0 +1,321 @@
+/**
+ * FibonacciHeap
+ *
+ * An implementation of Fibonacci heap over positive integers.
+ *
+ */
+public class FibonacciHeap
+{
+	public HeapNode min;
+	public int Treenum;
+	public int size;
+	public int totalLink;
+	public int totalcuts;
+	/**
+	 *
+	 * Constructor to initialize an empty heap.
+	 *
+	 */
+	public FibonacciHeap()
+	{
+		this.min=null;
+		this.Treenum=0;
+		this.size=0;
+		this.totalLink=0;
+		this.totalcuts=0;
+	}
+
+	/**
+	 * 
+	 * pre: key > 0
+	 *
+	 * Insert (key,info) into the heap and return the newly generated HeapNode.
+	 *
+	 */
+	public HeapNode insert(int key, String info) 
+	{    
+		HeapNode newnode= new HeapNode(key, info);
+		if(this.min==null){
+			this.min=newnode;
+			this.min.next=this.min;
+			this.min.prev=this.min;
+		}
+		else{
+			newnode.next=this.min;
+			newnode.prev=this.min.prev;
+			this.min.prev.next=newnode;
+			this.min.prev=newnode;
+			if(this.min.key>key)
+				this.min=newnode;
+		}
+		this.Treenum++;
+		this.size++;
+		return newnode;
+	}
+
+	/**
+	 * 
+	 * Return the minimal HeapNode, null if empty.
+	 *
+	 */
+	public HeapNode findMin()
+	{
+		return this.min;
+	}
+
+	/**
+	 * 
+	 * Delete the minimal item
+	 *
+	 */
+	public void deleteMin()
+	{
+		//first we delete min
+		this.naiveDeletionOfMinNode();
+		HeapNode[] treesarr=new HeapNode[(int)Math.log(this.size)+2];//crearting rank array
+		HeapNode pointer=this.min;
+		if(pointer!=null){//starting successive linking
+			treesarr[this.min.rank]=pointer;
+			pointer=pointer.next;
+			int treeschecked=1;//counts how many trees we visited and linked and/or put in treesarr
+			int sumtrees=this.Treenum;
+			while(treeschecked<sumtrees){
+				int r=pointer.rank;//pointer's linked list rank
+				HeapNode next=pointer.next;//saves the original next, so we will know from where to continue after successive linking
+				while(treesarr[r]!=null){ //while there is a tree we can link pointer tree to
+					pointer=this.Link(treesarr[r], pointer);
+					treesarr[r]=null;
+					r=r+1;//updating linked tree rank for next while iteration
+				}
+				//after there is no other tree to link pointer tree to, we put pointer tree in his place in treesarr
+				treesarr[r]=pointer;
+				if(pointer.key<this.min.key)//updates min if needed
+					this.min=pointer;
+				pointer=next;// pointer is now pointing to original next
+				treeschecked++;
+			}
+		}
+	
+	}
+	public void naiveDeletionOfMinNode(){
+		FibonacciHeap tmpheap=new FibonacciHeap();
+		if(this.min.child!=null){//if min has children we want tmp heap to be his childrens list 
+			HeapNode childrens=this.min.child;
+			while(childrens.parent!=null){//updating childrens parent to be null, O(logn)= minode's rank 
+				childrens.parent=null;
+				childrens=childrens.next;
+			}
+			//creating new tmp heap for min's childrens
+			tmpheap.min=this.min.child;
+			tmpheap.Treenum=this.min.rank;
+		}
+		//now because we have a pointer to min's childrens list we can delete min node and all his children from original heap (we dont update size because it stays the same-1)
+		if(this.min.next==this.min)//if min is the only tree root in the heap
+			this.min=null;
+		else{
+			this.min.next.prev=this.min.prev;
+			this.min.prev.next=this.min.next;
+			this.min=this.min.next;
+		}
+		this.Treenum--;
+		this.size--;
+		this.meld(tmpheap);//meld childrens heap with original heap wuthout min and his childrens 
+	}
+
+	public HeapNode Link(HeapNode node1, HeapNode node2){
+		HeapNode minnode=node1;
+		HeapNode newchild=node2;
+		if(node1.key>node2.key){//we find the min node of the new tree
+			minnode=node2;
+			newchild=node1;
+		}
+		//first disconnect newchild from root's tree
+		newchild.next.prev=newchild.prev;
+		newchild.prev.next=newchild.next;
+		if(minnode.child==null){//if rank of minnode=0
+			minnode.child=newchild;
+			newchild.next=newchild;
+			newchild.prev=newchild;
+		}
+		else{//else we connect newchild to minnode's children linked list
+			newchild.next=minnode.child.next;
+			minnode.child.next.prev=newchild;
+			newchild.prev=minnode.child;
+			minnode.child.next=newchild;
+		}
+		newchild.parent=minnode;
+		minnode.rank++;
+		this.totalLink++;
+		this.Treenum--;
+		return minnode;
+	}
+
+	/**
+	 * 
+	 * pre: 0<diff<x.key
+	 * 
+	 * Decrease the key of x by diff and fix the heap. 
+	 * 
+	 */
+	public void decreaseKey(HeapNode x, int diff) 
+	{  
+		x.key=x.key-diff;
+		if(x.parent!=null){//if x has parent
+			if(x.parent.key>x.key){//check if stack rule is still holds
+				HeapNode nodeparent=this.Cut(x);//if not we start cascading cuts
+				while((nodeparent!=null)&&(nodeparent.mark)){
+					nodeparent=this.Cut(nodeparent);
+				}
+				if(nodeparent!=null)//if we didnt make it to the root we need to mark the node
+					nodeparent.mark=true;
+			}
+		}
+		if(x.key<this.min.key)
+			this.min=x;
+	}
+
+
+	public HeapNode Cut(HeapNode x){
+		HeapNode nodeparent=x.parent;//save pointer to original parent
+		if(nodeparent.child==x){//if child pointer of x's parent is x 
+			if(x.next==x)//if x is the only child now parent has no children
+				nodeparent.child=null;
+			else//else xparent's child is the brother of x
+				nodeparent.child=x.next;
+		}
+		//deleting x of parent's child list
+		x.next.prev=x.prev;
+		x.prev.next=x.next;
+		//disconnecting x from his brothers and father :(
+		x.next=x;
+		x.prev=x;
+		x.parent=null;
+		//puting x in his own heap
+		FibonacciHeap tmpheap= new FibonacciHeap();
+		tmpheap.min=x;
+		tmpheap.Treenum=1;
+		//melding x heap with the original heap(tree num-is updating in meld func,size and all other invariants are not changing)
+		this.meld(tmpheap);
+		this.totalcuts++;//update total cuts
+		if(nodeparent!=null)//update parent's rank
+			nodeparent.rank--;
+		return nodeparent;
+
+	}
+
+	/**
+	 * 
+	 * Delete the x from the heap.
+	 *
+	 */
+	public void delete(HeapNode x) 
+	{ 
+		int diff=x.key-this.min.key+1;
+		HeapNode originalmin=this.min;
+		this.decreaseKey(x, diff);
+		this.naiveDeletionOfMinNode();
+		this.min=originalmin;
+	}
+
+
+	/**
+	 * 
+	 * Return the total number of links.
+	 * 
+	 */
+	public int totalLinks()
+	{
+		return this.totalLink; 
+	}
+
+
+	/**
+	 * 
+	 * Return the total number of cuts.
+	 * 
+	 */
+	public int totalCuts()
+	{
+		return totalcuts;
+	}
+
+
+	/**
+	 * 
+	 * Meld the heap with heap2
+	 *
+	 */
+	public void meld(FibonacciHeap heap2)
+	{
+		HeapNode othermin=heap2.findMin();
+		if(this.min==null)
+			this.min=othermin;
+
+		else{
+			if(othermin!=null){
+			HeapNode minnext=this.min.next;
+			HeapNode min2prev=othermin.prev;
+			this.min.next=othermin;
+			othermin.prev=this.min;
+			minnext.prev=min2prev;
+			min2prev.next=minnext;	 		
+			if(this.min.key>othermin.key)
+				this.min=othermin;
+		}
+		this.size+=heap2.size();
+		this.Treenum+=heap2.numTrees();
+		this.totalLink+=heap2.totalLinks();
+		this.totalcuts+=heap2.totalCuts();
+	}
+	}
+
+	/**
+	 * 
+	 * Return the number of elements in the heap
+	 *   
+	 */
+	public int size()
+	{
+		return this.size;
+	}
+
+
+	/**
+	 * 
+	 * Return the number of trees in the heap.
+	 * 
+	 */
+	public int numTrees()
+	{
+		return this.Treenum;
+	}
+
+	/**
+	 * Class implementing a node in a Fibonacci Heap.
+	 *  
+	 */
+	public static class HeapNode{
+		public int key;
+		public String info;
+		public HeapNode child;
+		public HeapNode next;
+		public HeapNode prev;
+		public HeapNode parent;
+		public int rank;
+		public boolean mark;
+
+		public HeapNode(int key, String info){
+			this.key=key;
+			this.info=info;
+			this.child=null;
+			this.next=null;
+			this.prev=null;
+			this.parent=null;
+			this.rank=0;
+			this.mark=false;
+		}
+		public int getKey(){
+			return this.key;
+		}
+	}
+}
