@@ -1,3 +1,8 @@
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.List;
+
 /**
  * FibonacciHeap
  *
@@ -32,7 +37,7 @@ public class FibonacciHeap
 	 * Insert (key,info) into the heap and return the newly generated HeapNode.
 	 *
 	 */
-	public HeapNode insert(int key, String info) 
+	public HeapNode insert(int key, String info) //O(1)
 	{    
 		HeapNode newnode= new HeapNode(key, info);
 		if(this.min==null){
@@ -68,36 +73,38 @@ public class FibonacciHeap
 	 * Delete the minimal item
 	 *
 	 */
-	public void deleteMin()
+	public void deleteMin()//O(n) wc, O(logn) amortized
 	{
+		if(this.min!=null){
 		//first we delete min
-		this.naiveDeletionOfMinNode();
-		HeapNode[] treesarr=new HeapNode[(int)Math.log(this.size)+2];//crearting rank array
-		HeapNode pointer=this.min;
-		if(pointer!=null){//starting successive linking
-			treesarr[this.min.rank]=pointer;
-			pointer=pointer.next;
-			int treeschecked=1;//counts how many trees we visited and linked and/or put in treesarr
-			int sumtrees=this.Treenum;
-			while(treeschecked<sumtrees){
-				int r=pointer.rank;//pointer's linked list rank
-				HeapNode next=pointer.next;//saves the original next, so we will know from where to continue after successive linking
-				while(treesarr[r]!=null){ //while there is a tree we can link pointer tree to
-					pointer=this.Link(treesarr[r], pointer);
-					treesarr[r]=null;
-					r=r+1;//updating linked tree rank for next while iteration
+			this.naiveDeletionOfMinNode();
+			int maxRank = (int) Math.ceil(Math.log(this.size) / Math.log((1 + Math.sqrt(5)) / 2)); // log_phi(size)
+			HeapNode[] treesarr = new HeapNode[Math.max((maxRank + 10),1)];//crearting rank array
+			HeapNode pointer=this.min;
+			if(pointer!=null){//starting successive linking
+				treesarr[this.min.rank]=pointer;
+				pointer=pointer.next;
+				int treeschecked=1;//counts how many trees we visited and linked and/or put in treesarr
+				int sumtrees=this.Treenum;
+				while(treeschecked<sumtrees){
+					int r=pointer.rank;//pointer's linked list rank
+					HeapNode next=pointer.next;//saves the original next, so we will know from where to continue after successive linking
+					while(treesarr[r]!=null){ //while there is a tree we can link pointer tree to
+						pointer=this.Link(treesarr[r], pointer);
+						treesarr[r]=null;
+						r++;//updating linked tree rank for next while iteration
+					}
+					//after there is no other tree to link pointer tree to, we put pointer tree in his place in treesarr
+					treesarr[r]=pointer;
+					if(pointer.key<this.min.key)//updates min if needed
+						this.min=pointer;
+					treeschecked++;
+					pointer=next;// pointer is now pointing to original next
 				}
-				//after there is no other tree to link pointer tree to, we put pointer tree in his place in treesarr
-				treesarr[r]=pointer;
-				if(pointer.key<this.min.key)//updates min if needed
-					this.min=pointer;
-				pointer=next;// pointer is now pointing to original next
-				treeschecked++;
 			}
 		}
-	
 	}
-	public void naiveDeletionOfMinNode(){
+	public void naiveDeletionOfMinNode(){ //O(logn)
 		FibonacciHeap tmpheap=new FibonacciHeap();
 		if(this.min.child!=null){//if min has children we want tmp heap to be his childrens list 
 			HeapNode childrens=this.min.child;
@@ -159,46 +166,49 @@ public class FibonacciHeap
 	 */
 	public void decreaseKey(HeapNode x, int diff) 
 	{  
-		x.key=x.key-diff;
-		if(x.parent!=null){//if x has parent
-			if(x.parent.key>x.key){//check if stack rule is still holds
-				HeapNode nodeparent=this.Cut(x);//if not we start cascading cuts
-				while((nodeparent!=null)&&(nodeparent.mark)){
-					nodeparent=this.Cut(nodeparent);
+		if(x!=null){
+			x.key=x.key-diff;
+			if(x.parent!=null){//if x has parent
+				if(x.parent.key>x.key){//check if stack rule is still holds
+					HeapNode nodeparent=this.Cut(x);//if not we start cascading cuts
+					while((nodeparent!=null)&&(nodeparent.mark)){
+						nodeparent=this.Cut(nodeparent);
+					}
+					if(nodeparent!=null)//if we didnt make it to the root we need to mark the node
+						nodeparent.mark=true;
 				}
-				if(nodeparent!=null)//if we didnt make it to the root we need to mark the node
-					nodeparent.mark=true;
 			}
+			if(x.key<this.min.key)
+				this.min=x;
 		}
-		if(x.key<this.min.key)
-			this.min=x;
 	}
 
 
 	public HeapNode Cut(HeapNode x){
 		HeapNode nodeparent=x.parent;//save pointer to original parent
-		if(nodeparent.child==x){//if child pointer of x's parent is x 
-			if(x.next==x)//if x is the only child now parent has no children
-				nodeparent.child=null;
-			else//else xparent's child is the brother of x
-				nodeparent.child=x.next;
-		}
-		//deleting x of parent's child list
-		x.next.prev=x.prev;
-		x.prev.next=x.next;
-		//disconnecting x from his brothers and father :(
-		x.next=x;
-		x.prev=x;
-		x.parent=null;
-		//puting x in his own heap
-		FibonacciHeap tmpheap= new FibonacciHeap();
-		tmpheap.min=x;
-		tmpheap.Treenum=1;
-		//melding x heap with the original heap(tree num-is updating in meld func,size and all other invariants are not changing)
-		this.meld(tmpheap);
-		this.totalcuts++;//update total cuts
-		if(nodeparent!=null)//update parent's rank
-			nodeparent.rank--;
+		if(nodeparent!=null){
+			if(nodeparent.child==x){//if child pointer of x's parent is x 
+				if(x.next==x)//if x is the only child now parent has no children
+					nodeparent.child=null;
+				else//else xparent's child is the brother of x
+					nodeparent.child=x.next;
+			}
+			//deleting x of parent's child list
+			x.next.prev=x.prev;
+			x.prev.next=x.next;
+			//disconnecting x from his brothers and father :(
+			x.next=x;
+			x.prev=x;
+			x.parent=null;
+			//puting x in his own heap
+			FibonacciHeap tmpheap= new FibonacciHeap();
+			tmpheap.min=x;
+			tmpheap.Treenum=1;
+			//melding x heap with the original heap(tree num-is updating in meld func,size and all other invariants are not changing)
+			this.meld(tmpheap);
+			this.totalcuts++;//update total cuts
+			nodeparent.rank--;//update parent's rank
+	}
 		return nodeparent;
 
 	}
@@ -210,11 +220,13 @@ public class FibonacciHeap
 	 */
 	public void delete(HeapNode x) 
 	{ 
-		int diff=x.key-this.min.key+1;
-		HeapNode originalmin=this.min;
-		this.decreaseKey(x, diff);
-		this.naiveDeletionOfMinNode();
-		this.min=originalmin;
+		if(x!=null){
+			int diff=x.key-this.min.key+1;
+			HeapNode originalmin=this.min;
+			this.decreaseKey(x, diff);
+			this.naiveDeletionOfMinNode();
+			this.min=originalmin;
+		}
 	}
 
 
@@ -247,26 +259,29 @@ public class FibonacciHeap
 	 */
 	public void meld(FibonacciHeap heap2)
 	{
-		HeapNode othermin=heap2.findMin();
-		if(this.min==null)
-			this.min=othermin;
-
-		else{
-			if(othermin!=null){
-			HeapNode minnext=this.min.next;
-			HeapNode min2prev=othermin.prev;
-			this.min.next=othermin;
-			othermin.prev=this.min;
-			minnext.prev=min2prev;
-			min2prev.next=minnext;	 		
-			if(this.min.key>othermin.key)
+		
+		if(heap2!=null){
+			HeapNode othermin=heap2.findMin();
+			if(this.min==null)
 				this.min=othermin;
-		}
-		this.size+=heap2.size();
-		this.Treenum+=heap2.numTrees();
-		this.totalLink+=heap2.totalLinks();
-		this.totalcuts+=heap2.totalCuts();
-	}
+			else{
+				if(othermin!=null){
+				HeapNode minnext=this.min.next;
+				HeapNode min2prev=othermin.prev;
+				this.min.next=othermin;
+				othermin.prev=this.min;
+				minnext.prev=min2prev;
+				min2prev.next=minnext;	 		
+				if(this.min.key>othermin.key)
+					this.min=othermin;
+				}
+			}
+			this.size+=heap2.size();
+			this.Treenum+=heap2.numTrees();
+			this.totalLink+=heap2.totalLinks();
+			this.totalcuts+=heap2.totalCuts();
+			
+		}	
 	}
 
 	/**
@@ -318,4 +333,168 @@ public class FibonacciHeap
 			return this.key;
 		}
 	}
+	public static class Expirement {
+		public static int[] Buildrandarr(int n){
+			List<Integer> lst=new ArrayList<>(n);
+			for(int i=1;i<=n;i++){
+				lst.add(i);
+			}
+			Collections.shuffle(lst);
+			int[] arr=new int[lst.size()];
+			for(int i=0;i<arr.length;i++){
+				arr[i]=lst.get(i);
+			}
+			return arr;
+		}
+		public static FibonacciHeap InsertArrayToHeap(int[] arr){
+			FibonacciHeap f=new FibonacciHeap();
+			for(int i=0;i<arr.length;i++){
+				f.insert(arr[i], "");
+			}
+			return f;
+		}
+		public static void Expirement1(int n,int i){
+			int totaltime=0;
+			int totalsize=0;
+			int totalLink=0;
+			int totalcuts=0;
+			int totaltrees=0;
+			for(int j=0;j<20;j++){
+				int[] arr=Buildrandarr(n);
+				long startTime = System.nanoTime();
+				FibonacciHeap f=InsertArrayToHeap(arr);
+				f.deleteMin();
+				long endtime=System.nanoTime();
+				totaltime+=endtime-startTime;
+				totalsize+=f.size;
+				totalLink+=f.totalLinks();
+				totalcuts+=f.totalCuts();
+				totaltrees+=f.numTrees();
+			}
+			System.out.println("expirement1 for i="+i);
+			System.out.println("avg time "+totaltime/20);
+			System.out.println("avg size "+totalsize/20);
+			System.out.println("avg links "+totalLink/20);
+			System.out.println("avg lcuts "+totalcuts/20);
+			System.out.println("avg treenum "+totaltrees/20);
+		}
+		public static void Expirement2(int n,int i){
+			int totaltime=0;
+			int totalsize=0;
+			int totalLink=0;
+			int totalcuts=0;
+			int totaltrees=0;
+			for(int j=0;j<20;j++){
+				int[] arr=Buildrandarr(n);
+				long startTime = System.nanoTime();
+				FibonacciHeap f=InsertArrayToHeap(arr);
+				for(int t=0;t<n/2;t++)
+					f.deleteMin();
+				long endtime=System.nanoTime();
+				totaltime+=endtime-startTime;
+				totalsize+=f.size;
+				totalLink+=f.totalLinks();
+				totalcuts+=f.totalCuts();
+				totaltrees+=f.numTrees();
+			}
+			System.out.println("expirement2 for i="+i);
+			System.out.println("avg time "+totaltime/20);
+			System.out.println("avg size "+totalsize/20);
+			System.out.println("avg links "+totalLink/20);
+			System.out.println("avg lcuts "+totalcuts/20);
+			System.out.println("avg treenum "+totaltrees/20);
+		}
+		public static void Expirement3(int n,int i){
+			int totaltime=0;
+			int totalsize=0;
+			int totalLink=0;
+			int totalcuts=0;
+			int totaltrees=0;
+			for(int t=0;t<20;t++){
+				int[] arr=Buildrandarr(n);
+				long startTime = System.nanoTime();
+				HeapNode[] nodesarr=new HeapNode[arr.length];
+				FibonacciHeap f=new FibonacciHeap();
+				for(int j=0;j<arr.length;j++){
+					nodesarr[arr[j]-1]=f.insert(arr[j], "");
+				}
+				int num=n;
+				while(f.size()>(Math.pow(2,5 )-1)){
+					f.deleteMin();
+					f.delete(nodesarr[num-1]);
+					num--;
+				}
+				long endtime = System.nanoTime();
+				totaltime+=endtime-startTime;
+				totalsize+=f.size;
+				totalLink+=f.totalLinks();
+				totalcuts+=f.totalCuts();
+				totaltrees+=f.numTrees();
+			}
+			System.out.println("expirement3 for i="+i);
+			System.out.println("avg time "+totaltime/20);
+			System.out.println("avg size "+totalsize/20);
+			System.out.println("avg links "+totalLink/20);
+			System.out.println("avg lcuts "+totalcuts/20);
+			System.out.println("avg treenum "+totaltrees/20);
+	
+		}
+		public  static void Expirements(){
+			for(int i=1;i<=5;i++){
+				int n=(int) (Math.pow(3, i+7)-1);
+				Expirement1(n, i);
+				Expirement2(n, i);
+				Expirement3(n, i);
+
+			}
+		}
+		public static void main(String[] args){
+			Expirements();
+		}
+	}
+
+		private int treeLimit = 70; // גבול לעצים
+		private int childLimit = 1000; // גבול לילדים
+		private int treeCount = 0; // מונה העצים הכללי
+		private int childCount = 0; // מונה הילדים הכללי
+	
+		public void printHeap() {
+			if (this.min == null) {
+				System.out.println("The heap is empty.");
+				return;
+			}
+			System.out.println("Fibonacci Heap:");
+	
+			HeapNode start = this.min;
+			HeapNode current = this.min;
+			treeCount = 0; // אתחול מונה העצים
+	
+			do {
+				treeCount++;
+				System.out.println("Tree " + treeCount + ":");
+				printTree(current, "", true);
+				current = current.next;
+			} while (current != start);
+		}
+	
+		private void printTree(HeapNode node, String prefix, boolean isLast) {
+			if (node == null || childCount >= childLimit) return;
+	
+			// הדפסת הצומת הנוכחית
+			System.out.print(prefix);
+			System.out.print(isLast ? "└── " : "├── ");
+			System.out.println("(" + node.key + ", \"" + node.info + "\")");
+	
+			// הכנת הקידומת לשכבה הבאה
+			prefix += isLast ? "    " : "│   ";
+	
+			// רקורסיה על הילדים
+			if (node.child != null) {
+				HeapNode child = node.child;
+				do {
+					printTree(child, prefix, child.next == node.child);
+					child = child.next;
+				} while (child != node.child);
+			}
+		}
 }
