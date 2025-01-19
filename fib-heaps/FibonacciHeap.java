@@ -79,7 +79,7 @@ public class FibonacciHeap
 		//first we delete min
 			this.naiveDeletionOfMinNode();
 			int maxRank = (int) Math.ceil(Math.log(this.size) / Math.log((1 + Math.sqrt(5)) / 2)); // log_phi(size)
-			HeapNode[] treesarr = new HeapNode[Math.max((maxRank + 10),1)];//crearting rank array
+			HeapNode[] treesarr = new HeapNode[Math.max((maxRank + 1),1)];//crearting rank array
 			HeapNode pointer=this.min;
 			if(pointer!=null){//starting successive linking
 				treesarr[this.min.rank]=pointer;
@@ -110,6 +110,7 @@ public class FibonacciHeap
 			HeapNode childrens=this.min.child;
 			while(childrens.parent!=null){//updating childrens parent to be null, O(logn)= minode's rank 
 				childrens.parent=null;
+				this.totalcuts++;
 				childrens=childrens.next;
 			}
 			//creating new tmp heap for min's childrens
@@ -145,12 +146,13 @@ public class FibonacciHeap
 			newchild.prev=newchild;
 		}
 		else{//else we connect newchild to minnode's children linked list
-			newchild.next=minnode.child.next;
-			minnode.child.next.prev=newchild;
-			newchild.prev=minnode.child;
-			minnode.child.next=newchild;
+			newchild.next=minnode.child;
+			newchild.prev=minnode.child.prev;
+			newchild.prev.next=newchild;
+			minnode.child.prev=newchild;
 		}
 		newchild.parent=minnode;
+		minnode.child=newchild;
 		minnode.rank++;
 		this.totalLink++;
 		this.Treenum--;
@@ -361,10 +363,10 @@ public class FibonacciHeap
 			int totaltrees=0;
 			for(int j=0;j<20;j++){
 				int[] arr=Buildrandarr(n);
-				long startTime = System.nanoTime();
+				long startTime = System.currentTimeMillis();
 				FibonacciHeap f=InsertArrayToHeap(arr);
 				f.deleteMin();
-				long endtime=System.nanoTime();
+				long endtime=System.currentTimeMillis();
 				totaltime+=endtime-startTime;
 				totalsize+=f.size;
 				totalLink+=f.totalLinks();
@@ -386,11 +388,11 @@ public class FibonacciHeap
 			int totaltrees=0;
 			for(int j=0;j<20;j++){
 				int[] arr=Buildrandarr(n);
-				long startTime = System.nanoTime();
+				long startTime = System.currentTimeMillis();
 				FibonacciHeap f=InsertArrayToHeap(arr);
 				for(int t=0;t<n/2;t++)
 					f.deleteMin();
-				long endtime=System.nanoTime();
+				long endtime=System.currentTimeMillis();
 				totaltime+=endtime-startTime;
 				totalsize+=f.size;
 				totalLink+=f.totalLinks();
@@ -412,20 +414,20 @@ public class FibonacciHeap
 			int totaltrees=0;
 			for(int t=0;t<20;t++){
 				int[] arr=Buildrandarr(n);
-				long startTime = System.nanoTime();
+				long startTime = System.currentTimeMillis();
 				HeapNode[] nodesarr=new HeapNode[arr.length];
 				FibonacciHeap f=new FibonacciHeap();
 				for(int j=0;j<arr.length;j++){
 					nodesarr[arr[j]-1]=f.insert(arr[j], "");
 				}
+				f.deleteMin();
 				int num=n;
 				while(f.size()>(Math.pow(2,5 )-1)){
-					f.deleteMin();
-					f.delete(nodesarr[num-1]);
+						f.delete(nodesarr[num-1]);
 					num--;
 				}
-				long endtime = System.nanoTime();
-				totaltime+=endtime-startTime;
+				long endtime = System.currentTimeMillis();
+				totaltime+=(endtime-startTime);
 				totalsize+=f.size;
 				totalLink+=f.totalLinks();
 				totalcuts+=f.totalCuts();
@@ -453,48 +455,4 @@ public class FibonacciHeap
 		}
 	}
 
-		private int treeLimit = 70; // גבול לעצים
-		private int childLimit = 1000; // גבול לילדים
-		private int treeCount = 0; // מונה העצים הכללי
-		private int childCount = 0; // מונה הילדים הכללי
-	
-		public void printHeap() {
-			if (this.min == null) {
-				System.out.println("The heap is empty.");
-				return;
-			}
-			System.out.println("Fibonacci Heap:");
-	
-			HeapNode start = this.min;
-			HeapNode current = this.min;
-			treeCount = 0; // אתחול מונה העצים
-	
-			do {
-				treeCount++;
-				System.out.println("Tree " + treeCount + ":");
-				printTree(current, "", true);
-				current = current.next;
-			} while (current != start);
-		}
-	
-		private void printTree(HeapNode node, String prefix, boolean isLast) {
-			if (node == null || childCount >= childLimit) return;
-	
-			// הדפסת הצומת הנוכחית
-			System.out.print(prefix);
-			System.out.print(isLast ? "└── " : "├── ");
-			System.out.println("(" + node.key + ", \"" + node.info + "\")");
-	
-			// הכנת הקידומת לשכבה הבאה
-			prefix += isLast ? "    " : "│   ";
-	
-			// רקורסיה על הילדים
-			if (node.child != null) {
-				HeapNode child = node.child;
-				do {
-					printTree(child, prefix, child.next == node.child);
-					child = child.next;
-				} while (child != node.child);
-			}
-		}
 }
