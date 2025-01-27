@@ -96,7 +96,7 @@ public class FibonacciHeap
 					}
 					//after there is no other tree to link pointer tree to, we put pointer tree in his place in treesarr
 					treesarr[r]=pointer;
-					if(pointer.key<this.min.key)//updates min if needed
+					if(pointer.key<=this.min.key)//updates min if needed
 						this.min=pointer;
 					treeschecked++;
 					pointer=next;// pointer is now pointing to original next
@@ -104,7 +104,7 @@ public class FibonacciHeap
 			}
 		}
 	}
-	public void naiveDeletionOfMinNode(){ //O(logn)
+	private void naiveDeletionOfMinNode(){ //O(logn)
 		FibonacciHeap tmpheap=new FibonacciHeap();
 		if(this.min.child!=null){//if min has children we want tmp heap to be his childrens list 
 			HeapNode childrens=this.min.child;
@@ -130,7 +130,7 @@ public class FibonacciHeap
 		this.meld(tmpheap);//meld childrens heap with original heap wuthout min and his childrens 
 	}
 
-	public HeapNode Link(HeapNode node1, HeapNode node2){
+	private HeapNode Link(HeapNode node1, HeapNode node2){
 		HeapNode minnode=node1;
 		HeapNode newchild=node2;
 		if(node1.key>node2.key){//we find the min node of the new tree
@@ -186,7 +186,7 @@ public class FibonacciHeap
 	}
 
 
-	public HeapNode Cut(HeapNode x){
+	private HeapNode Cut(HeapNode x){
 		HeapNode nodeparent=x.parent;//save pointer to original parent
 		if(nodeparent!=null){
 			if(nodeparent.child==x){//if child pointer of x's parent is x 
@@ -223,11 +223,16 @@ public class FibonacciHeap
 	public void delete(HeapNode x) 
 	{ 
 		if(x!=null){
+			if(x==this.min){
+				this.deleteMin();
+			}
+			else{
 			int diff=x.key-this.min.key+1;
 			HeapNode originalmin=this.min;
 			this.decreaseKey(x, diff);
 			this.naiveDeletionOfMinNode();
 			this.min=originalmin;
+			}
 		}
 	}
 
